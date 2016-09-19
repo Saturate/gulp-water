@@ -1,0 +1,27 @@
+{
+  "name": "gulp-water",
+  "version": "0.0.1",
+  "description": "Generate Static Sites with GulpJS",
+  "main": "water.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Saturate/gulp-water.git"
+  },
+  "keywords": [
+    "gulp",
+    "markdown",
+    "gulp",
+    "static",
+    "site",
+    "generator"
+  ],
+  "author": "Allan Kimmer Jensen",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Saturate/gulp-water/issues"
+  },
+  "homepage": "https://github.com/Saturate/gulp-water#readme"
+}
