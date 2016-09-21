@@ -58,7 +58,7 @@ var waterTransform = function(options) {
 
 		var env = nunjucks.configure(settings.templates);
 
-		env.addFilter('date', function(str, count) {
+		env.addFilter('date', function(str) {
 			return str;
 		});
 
@@ -69,12 +69,6 @@ var waterTransform = function(options) {
 		//console.log('CONTENT (%s - %s):\n\n', foo.data.title, file, res, renderOptions);
 
 		file.contents = new Buffer(res);
-
-		// TODO: Write paths corrently
-		file.path = gutil.replaceExtension(file.path, '.html');
-
-		file.path = file.path.replace('pages\\','');
-		file.path = file.path.replace('posts\\','');
 
 		function parsePath(filePath) {
 			var extname = path.extname(filePath);
@@ -92,15 +86,27 @@ var waterTransform = function(options) {
 			path.normalize(file.path),
 			path.normalize(settings.posts),
 			path.normalize(file.path).match(path.normalize(settings.posts))
-
 		);
 
-		// Check if it's in the pages dir.
+		// Check if it's in the posts dir.
 		if(path.normalize(file.path).match(path.normalize(settings.posts))) {
+			console.log('RENAME POST TO INDEX AND PUT IT IN FOLDER');
+			pathObj.basename = 'index';
+		}
+
+		// Check if it's in the pages dir.
+		if(path.normalize(file.path).match(path.normalize(settings.pages))) {
+			console.log('RENAME PAGE TO INDEX AND PUT IT IN FOLDER');
 			pathObj.basename = 'index';
 		}
 
 		file.path = path.join(pathObj.dirname, pathObj.basename + pathObj.extname);
+
+		// TODO: Write paths corrently
+		file.path = gutil.replaceExtension(file.path, '.html');
+
+		file.path = file.path.replace('pages\\','');
+		file.path = file.path.replace('posts\\','');
 
 		console.log(file.path);
 
