@@ -23,5 +23,11 @@
   "bugs": {
     "url": "https://github.com/Saturate/gulp-water/issues"
   },
-  "homepage": "https://github.com/Saturate/gulp-water#readme"
+  "homepage": "https://github.com/Saturate/gulp-water#readme",
+  "dependencies": {
+    "gray-matter": "^2.0.2",
+    "gulp-util": "^3.0.7",
+    "marked": "^0.3.6",
+    "through2": "^2.0.1"
+  }
 }
