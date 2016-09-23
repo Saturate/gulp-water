@@ -12,18 +12,15 @@
 		- Buckets/Collcetions:
 			A page is a collection with defaults, and blogposts are another.
 			You can make your own if you like two blogs ect. These can be used for metadata also.
-		- Word Count / Reading time
-			Expand the meta data by calulate these two things. Useful for readers.
 */
 'use strict';
 
-var fs = require('fs');
-var path = require('path');
+const path = require('path');
 const through = require('through2'); // npm install --save through2
 const matter = require('gray-matter'); // npm i gray-matter --save
 const marked = require('marked'); // npm install marked --save
 const nunjucks = require('nunjucks'); // npm install nunjucks --save
-var gutil = require('gulp-util');
+const gutil = require('gulp-util');
 
 var waterTransform = function(options) {
 	return through.obj(function(file, encoding, callback) {
