@@ -1,10 +1,10 @@
 {
   "name": "gulp-water",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Generate Static Sites with GulpJS",
   "main": "water.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "eslint water.js"
   },
   "repository": {
     "type": "git",
@@ -29,8 +29,5 @@
     "gulp-util": "^3.0.7",
     "marked": "^0.3.6",
     "through2": "^2.0.1"
-  },
-  "devDependencies": {
-    "eslint": "^3.6.0"
   }
 }
