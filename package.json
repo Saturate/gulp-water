@@ -30,5 +30,8 @@
     "marked": "^0.3.6",
     "nunjucks": "^2.5.2",
     "through2": "^2.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^3.6.1"
   }
 }
