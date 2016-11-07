@@ -16,11 +16,12 @@
 'use strict';
 
 const path = require('path');
-const through = require('through2'); // npm install --save through2
-const matter = require('gray-matter'); // npm i gray-matter --save
-const marked = require('marked'); // npm install marked --save
-const nunjucks = require('nunjucks'); // npm install nunjucks --save
+const through = require('through2');
+const matter = require('gray-matter');
+const marked = require('marked');
+const nunjucks = require('nunjucks');
 const gutil = require('gulp-util');
+const chalk = require('chalk');
 
 var waterTransform = function(options) {
 	return through.obj(function(file, encoding, callback) {
@@ -43,7 +44,7 @@ var waterTransform = function(options) {
 			posts: '/posts'
 		}, options);
 
-		console.log(file.path);
+		const originalFilePath = file.path;
 
 		var contents = file.contents.toString();
 
@@ -77,24 +78,32 @@ var waterTransform = function(options) {
 		}
 
 		var pathObj = parsePath(file.path);
-		console.log(pathObj);
+		//console.log(pathObj);
 
-		console.log(
+		/*console.log(
 			path.normalize(file.path),
 			path.normalize(settings.posts),
 			path.normalize(file.path).match(path.normalize(settings.posts))
-		);
+		);*/
 
 		// Check if it's in the posts dir.
 		if(path.normalize(file.path).match(path.normalize(settings.posts))) {
-			console.log('RENAME POST TO INDEX AND PUT IT IN FOLDER');
+		//	console.log('RENAME POST TO INDEX AND PUT IT IN FOLDER');
 			pathObj.basename = 'index';
 		}
 
 		// Check if it's in the pages dir.
 		if(path.normalize(file.path).match(path.normalize(settings.pages))) {
-			console.log('RENAME PAGE TO INDEX AND PUT IT IN FOLDER');
-			pathObj.basename = 'index';
+			let dirName = path.normalize(pathObj.dirname);
+			let currentCollectionName = path.normalize(settings.pages);
+
+			// Check if it's in the root folder, then we'll put it in a folder
+			if(dirName.indexOf(currentCollectionName) === dirName.length - currentCollectionName.length && pathObj.basename !== 'index' ) {
+				pathObj.dirname = pathObj.dirname + '/' + pathObj.basename + '/';
+				pathObj.basename = 'index';
+			} else {
+				pathObj.basename = 'index';
+			}
 		}
 
 		file.path = path.join(pathObj.dirname, pathObj.basename + pathObj.extname);
@@ -105,7 +114,8 @@ var waterTransform = function(options) {
 		file.path = file.path.replace('pages\\','');
 		file.path = file.path.replace('posts\\','');
 
-		console.log(file.path);
+		var currentTime = chalk.grey(new Date().toLocaleTimeString().replace(/\./gim, ":"));
+		console.log('['+currentTime+'] Water Transform: %s --> %s ', chalk.blue(originalFilePath.replace(process.cwd() + '\\content', '')), chalk.blue(file.path.replace(process.cwd() + '\\content', '')));
 
 		callback(null, file);
 	});
