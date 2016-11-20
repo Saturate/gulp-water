@@ -36,25 +36,24 @@ var waterTransform = function(options) {
 			return;
 		}
 
+		const originalFilePath = file.path;
+		let contents = file.contents.toString();
+		
 		// Merge defaults and options to get settings
-		var settings = Object.assign({
+		let settings = Object.assign({
 			templates: './app/_templates/',
 			contentPath: '/content',
 			pages: '/pages',
 			posts: '/posts'
 		}, options);
 
-		const originalFilePath = file.path;
-
-		var contents = file.contents.toString();
-
 		// Get the frontmatter, this is meta data
-		var foo = matter(contents);
+		let foo = matter(contents);
 
 		// Compile the Markdown to HTML
-		var transformedContents = marked(foo.content);
+		let transformedContents = marked(foo.content);
 
-		var env = nunjucks.configure(settings.templates);
+		let env = nunjucks.configure(settings.templates);
 
 		env.addFilter('date', function(str) {
 			return str;
@@ -102,6 +101,7 @@ var waterTransform = function(options) {
 				pathObj.dirname = pathObj.dirname + '/' + pathObj.basename + '/';
 				pathObj.basename = 'index';
 			} else {
+				// TODO: 404 page should be special, on github it needs to be in the root and called 404.html
 				pathObj.basename = 'index';
 			}
 		}
