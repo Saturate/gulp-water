@@ -38,7 +38,7 @@ var waterTransform = function(options) {
 
 		const originalFilePath = file.path;
 		let contents = file.contents.toString();
-		
+
 		// Merge defaults and options to get settings
 		let settings = Object.assign({
 			templates: './app/_templates/',
@@ -114,7 +114,7 @@ var waterTransform = function(options) {
 		file.path = file.path.replace('pages\\','');
 		file.path = file.path.replace('posts\\','');
 
-		var currentTime = chalk.grey(new Date().toLocaleTimeString().replace(/\./gim, ":"));
+		var currentTime = chalk.grey(new Date().toLocaleTimeString().replace(/\./gim, ':'));
 		console.log('['+currentTime+'] Water Transform: %s --> %s ', chalk.blue(originalFilePath.replace(process.cwd() + '\\content', '')), chalk.blue(file.path.replace(process.cwd() + '\\content', '')));
 
 		callback(null, file);
