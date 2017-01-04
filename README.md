@@ -20,8 +20,7 @@ const gulp = require('gulp');
 const less = require('gulp-water');
 
 function generate () {
-	return gulp.src('./content/**/*.md')
-		.pipe(water())
+	return new water({ source: './content/**/*.md' })
 		.pipe(gulp.dest('./dist');
 }
 

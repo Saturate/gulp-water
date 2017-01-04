@@ -22,10 +22,57 @@ const marked = require('marked');
 const nunjucks = require('nunjucks');
 const gutil = require('gulp-util');
 const chalk = require('chalk');
+const glob = require('glob');
+const vfs = require('vinyl-fs');
 
-var waterTransform = function(options) {
-	return through.obj(function(file, encoding, callback) {
+class Water {
+	constructor(options) {
+		// Merge defaults and options to get settings
+		this.settings = Object.assign({
+			content: './content/**/*.md',
+			templates: './app/_templates/',
+			contentPath: '/content',
+			pages: '/pages',
+			posts: '/posts'
+		}, options);
 
+		console.log('source', this.settings.content);
+
+		// options is optional
+		glob(this.settings.content, options, (er, files) => {
+			console.log(this.logPrefix() + ' Building tree from:');
+			console.log(this.logPrefix(), files);
+		});
+
+		let stream = vfs.src(this.settings.content);
+
+		stream.pipe(this.waterTransform());
+
+		return stream;
+	}
+
+	loadFiles() {
+
+	}
+
+	parsePath(filePath) {
+		var extname = path.extname(filePath);
+		return {
+			dirname: path.dirname(filePath),
+			basename: path.basename(filePath, extname),
+			extname: extname
+		};
+	}
+
+	waterTransform() {
+		return through.obj(this.generateMarkup.bind(this));
+	}
+
+	logPrefix() {
+		return '[' + chalk.grey(new Date().toLocaleTimeString().replace(/\./gim, ':')) + '] Water ';
+	}
+
+	generateMarkup(file, encoding, callback) {
 		if (file.isNull()) {
 			callback(null, file);
 			return;
@@ -39,45 +86,27 @@ var waterTransform = function(options) {
 		const originalFilePath = file.path;
 		let contents = file.contents.toString();
 
-		// Merge defaults and options to get settings
-		let settings = Object.assign({
-			templates: './app/_templates/',
-			contentPath: '/content',
-			pages: '/pages',
-			posts: '/posts'
-		}, options);
-
 		// Get the frontmatter, this is meta data
-		let foo = matter(contents);
+		let fileMatter = matter(contents);
 
 		// Compile the Markdown to HTML
-		let transformedContents = marked(foo.content);
+		let transformedContents = marked(fileMatter.content);
 
-		let env = nunjucks.configure(settings.templates);
+		let env = nunjucks.configure(this.settings.templates);
 
 		env.addFilter('date', function(str) {
 			return str;
 		});
 
 		// Merge all options
-		var renderOptions = Object.assign({ template: 'default.html' }, foo.data, { contents: transformedContents });
-		var res = env.render('./post.html', renderOptions);
+		let renderOptions = Object.assign({ template: 'default.html' }, fileMatter.data, { contents: transformedContents });
+		let res = env.render('./' + renderOptions.template, renderOptions);
 
-		//console.log('CONTENT (%s - %s):\n\n', foo.data.title, file, res, renderOptions);
+		//console.log('CONTENT (%s - %s):\n\n', fileMatter.data.title, file, res, renderOptions);
 
 		file.contents = new Buffer(res);
 
-		function parsePath(filePath) {
-			var extname = path.extname(filePath);
-			return {
-				dirname: path.dirname(filePath),
-				basename: path.basename(filePath, extname),
-				extname: extname
-			};
-		}
-
-		var pathObj = parsePath(file.path);
-		//console.log(pathObj);
+		let pathObj = this.parsePath(file.path);
 
 		/*console.log(
 			path.normalize(file.path),
@@ -86,15 +115,15 @@ var waterTransform = function(options) {
 		);*/
 
 		// Check if it's in the posts dir.
-		if(path.normalize(file.path).match(path.normalize(settings.posts))) {
+		if(path.normalize(file.path).match(path.normalize(this.settings.posts))) {
 		//	console.log('RENAME POST TO INDEX AND PUT IT IN FOLDER');
 			pathObj.basename = 'index';
 		}
 
 		// Check if it's in the pages dir.
-		if(path.normalize(file.path).match(path.normalize(settings.pages))) {
+		if(path.normalize(file.path).match(path.normalize(this.settings.pages))) {
 			let dirName = path.normalize(pathObj.dirname);
-			let currentCollectionName = path.normalize(settings.pages);
+			let currentCollectionName = path.normalize(this.settings.pages);
 
 			// Check if it's in the root folder, then we'll put it in a folder
 			if(dirName.indexOf(currentCollectionName) === dirName.length - currentCollectionName.length && pathObj.basename !== 'index' ) {
@@ -114,20 +143,10 @@ var waterTransform = function(options) {
 		file.path = file.path.replace('pages\\','');
 		file.path = file.path.replace('posts\\','');
 
-		var currentTime = chalk.grey(new Date().toLocaleTimeString().replace(/\./gim, ':'));
-		console.log('['+currentTime+'] Water Transform: %s --> %s ', chalk.blue(originalFilePath.replace(process.cwd() + '\\content', '')), chalk.blue(file.path.replace(process.cwd() + '\\content', '')));
-
+		console.log(this.logPrefix() + ' Transform: %s --> %s ', chalk.blue(originalFilePath.replace(process.cwd() + '\\content', '')), chalk.blue(file.path.replace(process.cwd() + '\\content', '')));
 		callback(null, file);
-	});
-};
 
+	}
+}
 
-/*
-fs.readdir('content/pages', function(err, files) {
-	files.forEach();
-});*/
-
-//fs.createReadStream('README.md').pipe(test);
-
-// Gulp
-module.exports = waterTransform;
+module.exports = Water;
