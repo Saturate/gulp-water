@@ -15,6 +15,7 @@
 */
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const through = require('through2');
 const matter = require('gray-matter');
@@ -32,17 +33,35 @@ class Water {
 			content: './content/**/*.md',
 			templates: './app/_templates/',
 			contentPath: '/content',
+			collections: [{
+				name: 'pages',
+				path: '/pages',
+				defaults: {
+
+				}
+			},{
+				name: 'posts', // blog posts
+				path: '/posts',
+				defaults: {	// defaults for this collection of pages
+					template: 'post.html'
+				}
+			}],
 			pages: '/pages',
 			posts: '/posts'
 		}, options);
 
+		this.pageCache = {};
+
 		console.log('source', this.settings.content);
 
 		// options is optional
-		glob(this.settings.content, options, (er, files) => {
-			console.log(this.logPrefix() + ' Building tree from:');
-			console.log(this.logPrefix(), files);
-		});
+		var files = glob.sync(this.settings.content, Object.assign(options, { absolute: true }));
+
+		//console.log(this.logPrefix() + ' Building tree from:');
+		//console.log(this.logPrefix(), files);
+
+		files.forEach(this.parsePageFile.bind(this));
+		this.settings.meta = files;
 
 		let stream = vfs.src(this.settings.content);
 
@@ -53,6 +72,21 @@ class Water {
 
 	loadFiles() {
 
+	}
+
+	/*
+		getCollection
+		Get a collection that matches this page.
+	*/
+	getCollection(filePath) {
+		let collection = this.settings.collections.find((collection) => {
+			//console.log(collection.path, filePath, filePath.includes(collection.path));
+			return filePath.includes(collection.path);
+		});
+
+		console.log('%s belongs in the %s collection', filePath, collection.name);
+
+		return collection;
 	}
 
 	parsePath(filePath) {
@@ -72,6 +106,20 @@ class Water {
 		return '[' + chalk.grey(new Date().toLocaleTimeString().replace(/\./gim, ':')) + '] Water ';
 	}
 
+	// Get the frontmatter, this is meta data
+	// Cache the result so that we can use it later-
+	parsePageFile(filePath) {
+		let fileContent = fs.readFileSync(filePath, 'utf-8');
+		let fileMatter = matter(fileContent);
+		console.log(this.logPrefix(), 'PATH',  filePath);
+
+		fileMatter.meta = {
+			collection: this.getCollection(filePath)
+		};
+
+		this.pageCache[path.normalize(filePath)] = fileMatter;
+	}
+
 	generateMarkup(file, encoding, callback) {
 		if (file.isNull()) {
 			callback(null, file);
@@ -84,26 +132,65 @@ class Water {
 		}
 
 		const originalFilePath = file.path;
-		let contents = file.contents.toString();
+		let fileMatter = this.pageCache[path.normalize(originalFilePath)];
 
-		// Get the frontmatter, this is meta data
-		let fileMatter = matter(contents);
+		console.log(originalFilePath);
 
 		// Compile the Markdown to HTML
 		let transformedContents = marked(fileMatter.content);
 
 		let env = nunjucks.configure(this.settings.templates);
 
-		env.addFilter('date', function(str) {
-			return str;
+		env.addFilter('date', function(str, format) {
+
+			var monthNames = [
+				'January', 'February', 'March',
+				'April', 'May', 'June', 'July',
+				'August', 'September', 'October',
+				'November', 'December'
+			];
+
+			var date = new Date(str);
+			var day = date.getDate();
+			var monthIndex = date.getMonth();
+			var year = date.getFullYear();
+
+			console.log(day, monthNames[monthIndex], year);
+
+			return day + ' ' + monthNames[monthIndex] + ' ' + year;
+		});
+
+		env.addFilter('json', function(str) {
+			return JSON.stringify(str, null, '\t');
+		});
+
+		env.addGlobal('water', () => {
+			return {
+				get: (name) => {
+					var match  = [];
+					Object.keys(this.pageCache).forEach((key) => {
+						if( this.pageCache[key].meta.collection.name === name) {
+							match.push(this.pageCache[key]);
+						}
+					});
+
+					console.log(match);
+
+					return match;
+				}
+			};
 		});
 
 		// Merge all options
-		let renderOptions = Object.assign({ template: 'default.html' }, fileMatter.data, { contents: transformedContents });
+		let renderOptions = Object.assign({
+			template: 'default.html',
+			'__water': this.pageCache
+		}, fileMatter.data, {
+			contents: transformedContents
+		});
+
+		// Save markup to file stream
 		let res = env.render('./' + renderOptions.template, renderOptions);
-
-		//console.log('CONTENT (%s - %s):\n\n', fileMatter.data.title, file, res, renderOptions);
-
 		file.contents = new Buffer(res);
 
 		let pathObj = this.parsePath(file.path);
@@ -145,7 +232,6 @@ class Water {
 
 		console.log(this.logPrefix() + ' Transform: %s --> %s ', chalk.blue(originalFilePath.replace(process.cwd() + '\\content', '')), chalk.blue(file.path.replace(process.cwd() + '\\content', '')));
 		callback(null, file);
-
 	}
 }
 
