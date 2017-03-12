@@ -29,6 +29,7 @@ const vfs = require('vinyl-fs');
 class Water {
 	constructor(options) {
 		// Merge defaults and options to get settings
+		this.pageCache = {};
 		this.settings = Object.assign({
 			content: './content/**/*.md',
 			templates: './app/_templates/',
@@ -50,19 +51,11 @@ class Water {
 			posts: '/posts'
 		}, options);
 
-		this.pageCache = {};
-
-		console.log('source', this.settings.content);
-
-		// options is optional
-		var files = glob.sync(this.settings.content, Object.assign(options, { absolute: true }));
-
-		//console.log(this.logPrefix() + ' Building tree from:');
-		//console.log(this.logPrefix(), files);
-
+		// Load Meta Data
+		let files = glob.sync(this.settings.content, Object.assign(options, { absolute: true }));
 		files.forEach(this.parsePageFile.bind(this));
-		this.settings.meta = files;
 
+		// Start the transformation!
 		let stream = vfs.src(this.settings.content);
 
 		stream.pipe(this.waterTransform());
@@ -89,6 +82,45 @@ class Water {
 		return collection;
 	}
 
+	/*
+		Generates link for website, for a item
+	*/
+	generateLink(pageItem, fileMatter) {
+		console.log('generateLink', pageItem, fileMatter.data.permalink);
+
+		if(fileMatter.data.permalink) {
+			return fileMatter.data.permalink;
+		}
+
+		return fileMatter.meta.basename;
+	}
+
+	convertName(pageItem, fileMatter) {
+		let pathObj = this.parsePath(pageItem);
+		let dirName = path.normalize(pathObj.dirname);
+		let currentCollectionName = path.normalize(fileMatter.meta.collection.path);
+
+		console.log('convertName', pageItem, fileMatter.data.permalink);
+
+		// Check if it's in the root folder, then we'll put it in a folder
+		if(dirName.indexOf(currentCollectionName) === dirName.length - currentCollectionName.length && pathObj.basename !== 'index' && !fileMatter.data.permalink ) {
+			dirName = dirName + '/' + pathObj.basename + '/';
+			pathObj.basename = 'index';
+		} else {
+			// TODO: 404 page should be special, on github it needs to be in the root and called 404.html
+			pathObj.basename = 'index';
+		}
+
+		dirName = dirName.replace(currentCollectionName,'');
+
+		// If the permalink is a named .html file use that can skip convert
+		if(fileMatter.data.permalink && fileMatter.data.permalink.includes('.html')) {
+			return path.join(dirName, fileMatter.data.permalink);
+		} else {
+			return path.join(dirName, pathObj.basename + '.html');
+		}
+	}
+
 	parsePath(filePath) {
 		var extname = path.extname(filePath);
 		return {
@@ -106,6 +138,10 @@ class Water {
 		return '[' + chalk.grey(new Date().toLocaleTimeString().replace(/\./gim, ':')) + '] Water ';
 	}
 
+	isDraft(filePath) {
+		return filePath.includes('_drafts');
+	}
+
 	// Get the frontmatter, this is meta data
 	// Cache the result so that we can use it later-
 	parsePageFile(filePath) {
@@ -114,8 +150,12 @@ class Water {
 		console.log(this.logPrefix(), 'PATH',  filePath);
 
 		fileMatter.meta = {
-			collection: this.getCollection(filePath)
+			collection: this.getCollection(filePath),
+			draft: this.isDraft(filePath),
+			basename: this.parsePath(filePath).basename
 		};
+
+		fileMatter.meta.link = this.generateLink(filePath, fileMatter);
 
 		this.pageCache[path.normalize(filePath)] = fileMatter;
 	}
@@ -141,26 +181,23 @@ class Water {
 
 		let env = nunjucks.configure(this.settings.templates);
 
-		env.addFilter('date', function(str, format) {
-
-			var monthNames = [
+		env.addFilter('date', function(str) {
+			const monthNames = [
 				'January', 'February', 'March',
 				'April', 'May', 'June', 'July',
 				'August', 'September', 'October',
 				'November', 'December'
 			];
 
-			var date = new Date(str);
-			var day = date.getDate();
-			var monthIndex = date.getMonth();
-			var year = date.getFullYear();
-
-			console.log(day, monthNames[monthIndex], year);
+			let date = new Date(str);
+			let day = date.getDate();
+			let monthIndex = date.getMonth();
+			let year = date.getFullYear();
 
 			return day + ' ' + monthNames[monthIndex] + ' ' + year;
 		});
 
-		env.addFilter('json', function(str) {
+		env.addFilter('json', (str) => {
 			return JSON.stringify(str, null, '\t');
 		});
 
@@ -169,12 +206,12 @@ class Water {
 				get: (name) => {
 					var match  = [];
 					Object.keys(this.pageCache).forEach((key) => {
-						if( this.pageCache[key].meta.collection.name === name) {
+						if( this.pageCache[key].meta.collection.name === name && !this.pageCache[key].meta.draft) {
 							match.push(this.pageCache[key]);
 						}
 					});
 
-					console.log(match);
+					//console.log(match);
 
 					return match;
 				}
@@ -193,42 +230,7 @@ class Water {
 		let res = env.render('./' + renderOptions.template, renderOptions);
 		file.contents = new Buffer(res);
 
-		let pathObj = this.parsePath(file.path);
-
-		/*console.log(
-			path.normalize(file.path),
-			path.normalize(settings.posts),
-			path.normalize(file.path).match(path.normalize(settings.posts))
-		);*/
-
-		// Check if it's in the posts dir.
-		if(path.normalize(file.path).match(path.normalize(this.settings.posts))) {
-		//	console.log('RENAME POST TO INDEX AND PUT IT IN FOLDER');
-			pathObj.basename = 'index';
-		}
-
-		// Check if it's in the pages dir.
-		if(path.normalize(file.path).match(path.normalize(this.settings.pages))) {
-			let dirName = path.normalize(pathObj.dirname);
-			let currentCollectionName = path.normalize(this.settings.pages);
-
-			// Check if it's in the root folder, then we'll put it in a folder
-			if(dirName.indexOf(currentCollectionName) === dirName.length - currentCollectionName.length && pathObj.basename !== 'index' ) {
-				pathObj.dirname = pathObj.dirname + '/' + pathObj.basename + '/';
-				pathObj.basename = 'index';
-			} else {
-				// TODO: 404 page should be special, on github it needs to be in the root and called 404.html
-				pathObj.basename = 'index';
-			}
-		}
-
-		file.path = path.join(pathObj.dirname, pathObj.basename + pathObj.extname);
-
-		// TODO: Write paths corrently
-		file.path = gutil.replaceExtension(file.path, '.html');
-
-		file.path = file.path.replace('pages\\','');
-		file.path = file.path.replace('posts\\','');
+		file.path = this.convertName(file.path, fileMatter);
 
 		console.log(this.logPrefix() + ' Transform: %s --> %s ', chalk.blue(originalFilePath.replace(process.cwd() + '\\content', '')), chalk.blue(file.path.replace(process.cwd() + '\\content', '')));
 		callback(null, file);
