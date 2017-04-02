@@ -48,7 +48,7 @@ This is not the normal way where you would have a `/images/` folder, but it make
 
 ## Developing
 
-A nifty trick is to install [nodemon](https://github.com/remy/nodemon). When that is done, you can run the following task in the project using gulp-water.
+A nifty trick is to install [nodemon](https://github.com/remy/nodemon). When that is done, you can run the following command in the project using gulp-water.
 
 `nodemon --exec "gulp dev" --watch ./gulpfile.js --watch D:\Path\To\GitHub\gulp-water`
 
