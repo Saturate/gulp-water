@@ -15,7 +15,7 @@ npm install gulp-water --save
 
 You can take a look at  my [AKJ.IO](https://github.com/Saturate/AKJIO) repo for a full usage example, with optimizations ect.
 
-```js
+```javascript
 const gulp = require('gulp');
 const less = require('gulp-water');
 
@@ -46,6 +46,14 @@ content
 
 This is not the normal way where you would have a `/images/` folder, but it makes it a lot easier to control content, think components but for pages and blog posts. It makes it easy to update a picture, or delete a blog post about worrying about missing images, and a images folder that contains a lot of junk.
 
+## Developing
+
+A nifty trick is to install [nodemon](https://github.com/remy/nodemon). When that is done, you can run the following task in the project using gulp-water.
+
+`nodemon --exec "gulp dev" --watch ./gulpfile.js --watch D:\Path\To\GitHub\gulp-water`
+
+This will watch for file changes both in the gulpfile in the current project, and in gulp-water allowing for much faster development.
+
 ## License
 
-Copyright 2016 - Allan Kimmer Jensen
+Copyright 2016-2017 - Allan Kimmer Jensen
