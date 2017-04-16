@@ -25,6 +25,8 @@ const gutil = require('gulp-util');
 const chalk = require('chalk');
 const glob = require('glob');
 const vfs = require('vinyl-fs');
+const excerptHtml = require('excerpt-html');
+const log = require('debug')('water');
 
 class Water {
 	constructor(options) {
@@ -77,7 +79,7 @@ class Water {
 			return filePath.includes(collection.path);
 		});
 
-		console.log('%s belongs in the %s collection', filePath, collection.name);
+		log('%s belongs in the %s collection', filePath, collection.name);
 
 		return collection;
 	}
@@ -86,7 +88,7 @@ class Water {
 		Generates link for website, for a item
 	*/
 	generateLink(pageItem, fileMatter) {
-		console.log('generateLink', pageItem, fileMatter.data.permalink);
+		log('generateLink', pageItem, fileMatter.data.permalink);
 
 		if(fileMatter.data.permalink) {
 			return fileMatter.data.permalink;
@@ -100,7 +102,7 @@ class Water {
 		let dirName = path.normalize(pathObj.dirname);
 		let currentCollectionName = path.normalize(fileMatter.meta.collection.path);
 
-		console.log('convertName', pageItem, fileMatter.data.permalink);
+		log('convertName', pageItem, fileMatter.data.permalink);
 
 		// Check if it's in the root folder, then we'll put it in a folder
 		if(dirName.indexOf(currentCollectionName) === dirName.length - currentCollectionName.length && pathObj.basename !== 'index' && !fileMatter.data.permalink ) {
@@ -147,7 +149,7 @@ class Water {
 	parsePageFile(filePath) {
 		let fileContent = fs.readFileSync(filePath, 'utf-8');
 		let fileMatter = matter(fileContent);
-		console.log(this.logPrefix(), 'PATH',  filePath);
+		log(this.logPrefix(), 'PATH',  filePath);
 
 		fileMatter.meta = {
 			collection: this.getCollection(filePath),
@@ -156,6 +158,8 @@ class Water {
 		};
 
 		fileMatter.meta.link = this.generateLink(filePath, fileMatter);
+		fileMatter.transformedContents = marked(fileMatter.content); // Compile the Markdown to HTML
+		fileMatter.excerpt = excerptHtml(fileMatter.transformedContents);
 
 		this.pageCache[path.normalize(filePath)] = fileMatter;
 	}
@@ -174,12 +178,17 @@ class Water {
 		const originalFilePath = file.path;
 		let fileMatter = this.pageCache[path.normalize(originalFilePath)];
 
-		console.log(originalFilePath);
-
-		// Compile the Markdown to HTML
-		let transformedContents = marked(fileMatter.content);
+		log(originalFilePath);
 
 		let env = nunjucks.configure(this.settings.templates);
+
+		// Merge all options
+		let renderOptions = Object.assign({
+			template: 'default.html',
+			'__water': this.pageCache,
+		}, fileMatter.data, {
+			contents: fileMatter.transformedContents
+		});
 
 		env.addFilter('date', function(str) {
 			const monthNames = [
@@ -201,6 +210,10 @@ class Water {
 			return JSON.stringify(str, null, '\t');
 		});
 
+		env.addFilter('excerpt', (str) => {
+			return excerptHtml(str);
+		});
+
 		env.addGlobal('water', () => {
 			return {
 				get: (name) => {
@@ -218,21 +231,14 @@ class Water {
 			};
 		});
 
-		// Merge all options
-		let renderOptions = Object.assign({
-			template: 'default.html',
-			'__water': this.pageCache
-		}, fileMatter.data, {
-			contents: transformedContents
-		});
-
 		// Save markup to file stream
+		console.log(renderOptions.title, renderOptions.template);
 		let res = env.render('./' + renderOptions.template, renderOptions);
 		file.contents = new Buffer(res);
 
 		file.path = this.convertName(file.path, fileMatter);
 
-		console.log(this.logPrefix() + ' Transform: %s --> %s ', chalk.blue(originalFilePath.replace(process.cwd() + '\\content', '')), chalk.blue(file.path.replace(process.cwd() + '\\content', '')));
+		log(this.logPrefix() + ' Transform: %s --> %s ', chalk.blue(originalFilePath.replace(process.cwd() + '\\content', '')), chalk.blue(file.path.replace(process.cwd() + '\\content', '')));
 		callback(null, file);
 	}
 }
