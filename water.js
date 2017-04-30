@@ -217,16 +217,20 @@ class Water {
 		env.addGlobal('water', () => {
 			return {
 				get: (name) => {
-					var match  = [];
+					var matches = [];
 					Object.keys(this.pageCache).forEach((key) => {
 						if( this.pageCache[key].meta.collection.name === name && !this.pageCache[key].meta.draft) {
-							match.push(this.pageCache[key]);
+							matches.push(this.pageCache[key]);
 						}
 					});
 
-					//console.log(match);
+					log('matches', matches);
 
-					return match;
+					matches = matches.sort(function(a, b) {
+						return a.data.date < b.data.date;
+					});
+
+					return matches;
 				}
 			};
 		});

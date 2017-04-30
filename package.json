@@ -1,6 +1,6 @@
 {
   "name": "gulp-water",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Generate Static Sites with GulpJS",
   "main": "water.js",
   "scripts": {
